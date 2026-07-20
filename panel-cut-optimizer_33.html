@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel Cut Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --panel-bg: #fffdf8;
+    --border: #c8b89a;
+    --accent: #5c3d1e;
+    --accent2: #8b5e3c;
+    --text: #2a1f14;
+    --muted: #8a7560;
+    --wood-light: #d4a96a;
+    --wood-mid: #b8864a;
+    --input-bg: #fdf8f0;
+    --danger: #b94040;
+    --success: #3a6e45;
+    --shadow: 0 2px 12px rgba(44,28,12,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--accent);
+    color: #fdf8f0;
+    padding: 18px 36px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 4px solid var(--wood-light);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.7rem;
+    letter-spacing: 0.02em;
+  }
+  header span {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    opacity: 0.65;
+    margin-left: auto;
+    letter-spacing: 0.08em;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 780px 1fr;
+    min-height: calc(100vh - 68px);
+  }
+  .sidebar {
+    background: var(--panel-bg);
+    border-right: 1.5px solid var(--border);
+    padding: 24px 20px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(100vh - 68px);
+  }
+  .section {
+    margin-bottom: 22px;
+  }
+  .section-title {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 12px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .field-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+  label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 3px;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+  }
+  input[type="number"], input[type="text"] {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--text);
+    transition: border-color 0.18s;
+    outline: none;
+  }
+  input:focus { border-color: var(--accent2); }
+  .pieces-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+  .pieces-table th {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 5px 6px;
+    border-bottom: 1.5px solid var(--border);
+    text-align: left;
+    background: var(--bg);
+  }
+  .pieces-table td {
+    padding: 4px 4px;
+    border-bottom: 1px solid #e8dfd0;
+    vertical-align: middle;
+  }
+  .pieces-table td input {
+    padding: 4px 6px;
+    font-size: 0.78rem;
+  }
+  .piece-label-cell {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent2);
+    font-weight: 500;
+    padding-left: 6px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.18s;
+    letter-spacing: 0.02em;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fdf8f0;
+  }
+  .btn-primary:hover { background: var(--accent2); }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--text);
+  }
+  .btn-outline:hover { border-color: var(--accent2); color: var(--accent2); }
+  .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #9b3030; }
+  .actions-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    align-items: center;
+  }
+  .optimize-btn {
+    width: 100%;
+    padding: 13px;
+    font-size: 1rem;
+    font-family: 'Playfair Display', serif;
+    letter-spacing: 0.04em;
+    border-radius: 6px;
+    background: var(--accent);
+    color: #fdf8f0;
+    border: none;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.18s;
+  }
+  .optimize-btn:hover { background: var(--accent2); }
+  .main-area {
+    background: var(--bg);
+    padding: 28px 24px;
+    overflow-y: auto;
+    overflow-x: auto;
+    max-height: calc(100vh - 68px);
+    min-width: 0;
+  }
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .output-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    color: var(--accent);
+  }
+  .stats-bar {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .stat {
+    background: var(--panel-bg);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+  }
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .print-pages {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  .page-wrapper {
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: var(--shadow);
+    width: 8.5in;
+    min-height: 11in;
+    padding: 0.45in 0.5in;
+    position: relative;
+  }
+  .page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 13pt;
+    color: #2a1f14;
+    margin-bottom: 2px;
+  }
+  .page-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 7pt;
+    color: #8a7560;
+    margin-bottom: 10px;
+    letter-spacing: 0.08em;
+  }
+  .cut-diagram-wrap {
+    margin-bottom: 14px;
+  }
+  .page-footer {
+    position: absolute;
+    bottom: 0.3in;
+    left: 0.5in;
+    right: 0.5in;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 7pt;
+    color: #8a7560;
+  }
+  .legend {
+    display: flex;
+    gap: 18px;
+    margin-top: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 7.5pt;
+    color: #555;
+    flex-wrap: wrap;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #aaa;
+    flex-shrink: 0;
+  }
+  .placeholder {
+    text-align: center;
+    padding: 80px 40px;
+    color: var(--muted);
+  }
+  .placeholder-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+    opacity: 0.4;
+  }
+  .placeholder h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+    color: var(--accent2);
+  }
+  .placeholder p {
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  .error-msg {
+    background: #ffeaea;
+    border: 1.5px solid var(--danger);
+    border-radius: 4px;
+    padding: 10px 14px;
+    color: var(--danger);
+    font-size: 0.82rem;
+    margin-bottom: 12px;
+  }
+  .add-row-btn {
+    font-size: 0.75rem;
+    color: var(--accent2);
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 5px 12px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 5px;
+    transition: all 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .add-row-btn:hover { border-color: var(--accent2); background: #fdf5ea; }
+  #fileInput { display: none; }
+
+  @media print {
+    body { background: white; }
+    header, .sidebar, .output-header, .stats-bar, .actions-row, .optimize-btn, .btn { display: none !important; }
+    .app { display: block; }
+    .main-area { max-height: none; overflow: visible; padding: 0; background: white; }
+    .page-wrapper {
+      width: 8.5in !important;
+      min-height: 11in !important;
+      box-shadow: none !important;
+      border: none !important;
+      margin: 0;
+      padding: 0.45in 0.5in;
+      page-break-after: always;
+    }
+    .print-pages { gap: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="6" width="24" height="16" rx="2" stroke="#d4a96a" stroke-width="2"/>
+    <line x1="9" y1="6" x2="9" y2="22" stroke="#d4a96a" stroke-width="1.5" stroke-dasharray="2,2"/>
+    <line x1="18" y1="6" x2="18" y2="22" stroke="#d4a96a" stroke-width="1.5" stroke-dasharray="2,2"/>
+    <line x1="2" y1="14" x2="26" y2="14" stroke="#d4a96a" stroke-width="1.5" stroke-dasharray="2,2"/>
+  </svg>
+  <h1>Panel Cut Optimizer</h1>
+  <span>YIELD MAXIMIZER · WOODWORKING</span>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <!-- File Actions -->
+    <div class="section">
+      <div class="section-title">Project File</div>
+      <div style="margin-bottom:10px;">
+        <label>Project Name</label>
+        <input type="text" id="projectName" placeholder="e.g. Kitchen Cabinet Build" style="width:100%;">
+      </div>
+      <div style="display:flex;gap:0;margin-bottom:10px;border:1.5px solid var(--border);border-radius:4px;overflow:hidden;">
+        <button id="fmtXlsx" onclick="setFormat('xlsx')" style="flex:1;padding:5px 0;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.06em;border:none;cursor:pointer;background:var(--accent);color:#fdf8f0;transition:all 0.15s;">XLSX / Excel</button>
+        <button id="fmtCsv" onclick="setFormat('csv')" style="flex:1;padding:5px 0;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.06em;border:none;cursor:pointer;background:var(--input-bg);color:var(--muted);transition:all 0.15s;">CSV</button>
+        <button id="fmtJson" onclick="setFormat('json')" style="flex:1;padding:5px 0;font-family:'DM Mono',monospace;font-size:0.72rem;letter-spacing:0.06em;border:none;cursor:pointer;background:var(--input-bg);color:var(--muted);transition:all 0.15s;">JSON</button>
+      </div>
+      <div id="fmtHint" style="font-size:0.7rem;color:var(--muted);margin-bottom:8px;line-height:1.4;">
+        Saves as <strong>.xlsx</strong> — original workbook formatting is preserved. If a workbook has multiple sheets, you'll be asked which one to load from.
+      </div>
+      <div id="xlsxSheetNameWrap" style="display:block;margin-bottom:8px;">
+        <label>Worksheet name (save target)</label>
+        <input type="text" id="xlsxSheetName" placeholder="e.g. Panel Cut Data" style="width:100%;">
+      </div>
+      <div id="xlsxStatus" style="font-size:0.7rem;color:var(--accent2);margin-bottom:8px;line-height:1.4;display:none;"></div>
+      <div class="actions-row">
+        <button class="btn btn-outline btn-sm" onclick="saveParams()">⬇ Save</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('fileInput').click()">⬆ Load</button>
+        <input type="file" id="fileInput" accept=".json,.csv,.xlsx,.xls,.xlsm" onchange="loadParams(event)">
+      </div>
+    </div>
+
+    <!-- Worksheet Picker Modal -->
+    <div id="sheetPickerModal" style="display:none;position:fixed;inset:0;background:rgba(42,31,20,0.55);z-index:999;align-items:center;justify-content:center;">
+      <div style="background:var(--panel-bg);border:1.5px solid var(--border);border-radius:8px;padding:22px;width:340px;box-shadow:var(--shadow);">
+        <div class="section-title" style="margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:6px;">Select Worksheet</div>
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:14px;line-height:1.4;">
+          This workbook has multiple sheets. Choose which one to load data from:
+        </div>
+        <select id="sheetPickerSelect" style="width:100%;margin-bottom:16px;padding:7px 10px;border:1.5px solid var(--border);border-radius:4px;font-family:'DM Mono',monospace;font-size:0.85rem;background:var(--input-bg);color:var(--text);"></select>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-outline btn-sm" onclick="cancelSheetPicker()">Cancel</button>
+          <button class="btn btn-primary btn-sm" onclick="confirmSheetPicker()">Load Sheet</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel Stock -->
+    <div class="section">
+      <div class="section-title">Panel Stock</div>
+      <div class="field-row">
+        <div>
+          <label>Width (in)</label>
+          <input type="number" id="panelWidth" value="48" min="1" step="0.0625">
+        </div>
+        <div>
+          <label>Length (in)</label>
+          <input type="number" id="panelLength" value="96" min="1" step="0.0625">
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Thickness (in)</label>
+          <input type="number" id="panelThickness" value="1.0" min="0.0625" step="0.0625" placeholder="e.g. 1.0">
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <span style="font-size:0.7rem;color:var(--muted);line-height:1.4;padding-bottom:8px;">Used to calculate<br>total board feet</span>
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Cost / Board Foot ($)</label>
+          <input type="number" id="panelCost" value="" min="0" step="0.01" placeholder="e.g. 8.50">
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <span style="font-size:0.7rem;color:var(--muted);line-height:1.4;padding-bottom:8px;">Multiplied by total<br>board feet (incl. waste)</span>
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Stock On Hand (panels)</label>
+          <input type="number" id="stockOnHand" value="" min="0" step="1" placeholder="e.g. 5">
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <span style="font-size:0.7rem;color:var(--muted);line-height:1.4;padding-bottom:8px;">Shows surplus or<br>shortage after layout</span>
+        </div>
+      </div>
+      <div class="field-row">
+        <div>
+          <label>Starting Panel Letter</label>
+          <input type="text" id="panelStartNum" value="A" maxlength="4" style="text-transform:uppercase" placeholder="A" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z]/g,'')">
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <span style="font-size:0.7rem;color:var(--muted);line-height:1.4;padding-bottom:8px;">First panel letter<br>in the output (e.g. E)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tooling -->
+    <div class="section">
+      <div class="section-title">Tooling Allowances</div>
+      <div class="field-row">
+        <div>
+          <label>Saw Kerf (in)</label>
+          <input type="number" id="sawKerf" value="0.125" min="0" step="0.0625">
+        </div>
+        <div>
+          <label>Jointer Allow. (in)</label>
+          <input type="number" id="jointAllow" value="0.0625" min="0" step="0.0625">
+        </div>
+      </div>
+    </div>
+
+    <!-- Cut List -->
+    <div class="section">
+      <div class="section-title">Cut List &nbsp;<span style="color:var(--accent2);font-size:0.68rem">(up to 30 pieces)</span></div>
+      <table class="pieces-table" id="piecesTable">
+        <thead>
+          <tr>
+            <th>NO.</th>
+            <th>Group</th>
+            <th>Subgroup</th>
+            <th>Part</th>
+            <th>Qty</th>
+            <th>Width</th>
+            <th>Length</th>
+            <th style="white-space:nowrap" title="Checked = grain aligned (piece length runs parallel to panel length). Unchecked = free to rotate.">Grain ↕</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="piecesBody"></tbody>
+      </table>
+      <button class="add-row-btn" onclick="addPieceRow()">+ Add Piece</button>
+    </div>
+
+    <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="printCutSeq" checked style="cursor:pointer;width:15px;height:15px;accent-color:var(--accent);">
+      <label for="printCutSeq" style="margin-bottom:0;cursor:pointer;font-size:0.78rem;color:var(--text);">Print cut sequence on PDF</label>
+    </div>
+    <button class="optimize-btn" onclick="runOptimizer()">⚙ Optimize &amp; Generate Layout</button>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div class="main-area" id="mainArea">
+    <div class="output-header">
+      <div class="output-title">Cut Layout</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" onclick="window.print()">🖨 Print</button>
+      </div>
+    </div>
+    <div id="outputArea">
+      <div class="placeholder">
+        <div class="placeholder-icon">🪵</div>
+        <h3>Ready to optimize</h3>
+        <p>Enter your panel dimensions, tooling allowances,<br>and cut list, then click <strong>Optimize &amp; Generate Layout</strong>.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Piece rows ───────────────────────────────────────────────
+const PIECE_COLORS = [
+  '#2a6496','#c0392b','#27ae60','#8e44ad','#d35400',
+  '#16a085','#2980b9','#c0392b','#7f8c8d','#f39c12',
+  '#1abc9c','#9b59b6','#e74c3c','#3498db','#2ecc71',
+  '#e67e22','#1abc9c','#34495e','#d35400','#8e44ad'
+];
+const LABELS = 'ABCDEFGHIJKLMNOPQRST';
+
+let pieceCount = 0;
+
+function addPieceRow(qty='1', width='', length='', name='', group='', subgroup='', part='', grain='fixed') {
+  if (pieceCount >= 30) { alert('Maximum 30 unique pieces.'); return; }
+  const tbody = document.getElementById('piecesBody');
+  const idx = pieceCount;
+  // Back-compat: if only legacy 'name' passed, put it in group
+  const grpVal = group || (name && !subgroup && !part ? name : '') || LABELS[idx];
+  const subVal = subgroup || '';
+  const partVal = part || '';
+  // Format numeric values to 4dp if provided
+  const wVal = width !== '' && width !== null ? parseFloat(width).toFixed(4) : '';
+  const lVal = length !== '' && length !== null ? parseFloat(length).toFixed(4) : '';
+  const grainFixed = grain === 'fixed';
+  const tr = document.createElement('tr');
+  tr.id = `piece-row-${idx}`;
+  tr.innerHTML = `
+    <td class="piece-label-cell" style="color:${PIECE_COLORS[idx]}">${idx+1}</td>
+    <td><input type="text" id="pGroup_${idx}" value="${grpVal}" placeholder="Group" style="width:40px;font-size:0.78rem;padding:4px 5px"></td>
+    <td><input type="text" id="pSubgroup_${idx}" value="${subVal}" placeholder="Subgroup" style="width:40px;font-size:0.78rem;padding:4px 5px"></td>
+    <td><input type="text" id="pPart_${idx}" value="${partVal}" placeholder="Part" style="width:144px;font-size:0.78rem;padding:4px 5px"></td>
+    <td><input type="number" id="pQty_${idx}" value="${qty}" min="1" max="200" style="width:44px"></td>
+    <td><input type="number" id="pW_${idx}" value="${wVal}" min="0.0001" step="0.0001" placeholder="in" style="width:92px" onchange="fmt4dp(this)"></td>
+    <td><input type="number" id="pL_${idx}" value="${lVal}" min="0.0001" step="0.0001" placeholder="in" style="width:92px" onchange="fmt4dp(this)"></td>
+    <td style="text-align:center;padding:0 6px;">
+      <input type="checkbox" id="pGrainFixed_${idx}" ${grainFixed ? 'checked' : ''} title="Aligned: piece length runs parallel to panel length (grain direction). Uncheck to allow free rotation." style="cursor:pointer;width:15px;height:15px;accent-color:var(--accent);">
+    </td>
+    <td><button class="btn btn-danger btn-sm" onclick="removePieceRow(${idx},this)">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+  pieceCount++;
+}
+
+function fmt4dp(input) {
+  // On blur would be cleaner but oninput keeps value in sync; reformat on change
+  const v = parseFloat(input.value);
+  if (!isNaN(v)) input.value = v.toFixed(4);
+}
+
+function removePieceRow(idx, btn) {
+  btn.closest('tr').remove();
+}
+
+function getPieces() {
+  const pieces = [];
+  const tbody = document.getElementById('piecesBody');
+  const rows = tbody.querySelectorAll('tr');
+  rows.forEach((row, i) => {
+    const idxMatch = row.id.match(/piece-row-(\d+)/);
+    if (!idxMatch) return;
+    const idx = idxMatch[1];
+    const qty = parseFloat(document.getElementById(`pQty_${idx}`)?.value) || 0;
+    const w = parseFloat(document.getElementById(`pW_${idx}`)?.value) || 0;
+    const l = parseFloat(document.getElementById(`pL_${idx}`)?.value) || 0;
+    const grp = (document.getElementById(`pGroup_${idx}`)?.value || '').trim();
+    const sub = (document.getElementById(`pSubgroup_${idx}`)?.value || '').trim();
+    const prt = (document.getElementById(`pPart_${idx}`)?.value || '').trim();
+    const grainEl = document.getElementById(`pGrainFixed_${idx}`);
+    const grain = grainEl && grainEl.checked ? 'fixed' : 'any';
+    const label = [grp, sub, prt].filter(Boolean).join(' / ') || LABELS[parseInt(idx)];
+    if (qty > 0 && w > 0 && l > 0) {
+      pieces.push({ label, group: grp, subgroup: sub, part: prt, grain, qty: Math.round(qty), w, l, color: PIECE_COLORS[parseInt(idx)] });
+    }
+  });
+  return pieces;
+}
+
+// ─── Format toggle ────────────────────────────────────────────
+let saveFormat = 'xlsx';
+
+// ─── XLSX workbook state ────────────────────────────────────────
+// Tracks the currently loaded workbook (if any) so that saving as
+// .xlsx writes back into the same worksheet/cells, preserving the
+// original workbook's formatting and any other sheets it contains.
+let loadedWorkbook = null;
+let loadedSheetName = null;
+let loadedWorkbookFilename = null;
+let pendingWorkbook = null;
+let pendingWorkbookFilename = null;
+
+function setFormat(fmt) {
+  saveFormat = fmt;
+  const btns = { json: 'fmtJson', csv: 'fmtCsv', xlsx: 'fmtXlsx' };
+  Object.keys(btns).forEach(k => {
+    const el = document.getElementById(btns[k]);
+    el.style.background = fmt === k ? 'var(--accent)' : 'var(--input-bg)';
+    el.style.color = fmt === k ? '#fdf8f0' : 'var(--muted)';
+  });
+  const hints = {
+    json: 'Saves as <strong>.json</strong> — reload in this tool.',
+    csv: 'Saves as <strong>.csv</strong> — open in Google Sheets or Excel, edit, then reload here.',
+    xlsx: 'Saves as <strong>.xlsx</strong> — original workbook formatting is preserved. If a workbook has multiple sheets, you\'ll be asked which one to load from.'
+  };
+  document.getElementById('fmtHint').innerHTML = hints[fmt];
+  document.getElementById('xlsxSheetNameWrap').style.display = fmt === 'xlsx' ? 'block' : 'none';
+  updateXlsxStatus();
+}
+
+function updateXlsxStatus() {
+  const el = document.getElementById('xlsxStatus');
+  if (saveFormat === 'xlsx' && loadedWorkbook && loadedSheetName) {
+    el.style.display = 'block';
+    el.innerHTML = `Editing <strong>${loadedSheetName}</strong> from <strong>${loadedWorkbookFilename || 'loaded workbook'}</strong>. Saving will update this worksheet in place; other sheets are left untouched.`;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ─── Save / Load ──────────────────────────────────────────────
+function collectData() {
+  const rows = document.querySelectorAll('#piecesBody tr');
+  const piecesData = [];
+  rows.forEach(row => {
+    const idxMatch = row.id.match(/piece-row-(\d+)/);
+    if (!idxMatch) return;
+    const idx = idxMatch[1];
+    const grainEl = document.getElementById(`pGrainFixed_${idx}`);
+    piecesData.push({
+      group: document.getElementById(`pGroup_${idx}`)?.value || '',
+      subgroup: document.getElementById(`pSubgroup_${idx}`)?.value || '',
+      part: document.getElementById(`pPart_${idx}`)?.value || '',
+      qty: document.getElementById(`pQty_${idx}`)?.value || '',
+      w: document.getElementById(`pW_${idx}`)?.value || '',
+      l: document.getElementById(`pL_${idx}`)?.value || '',
+      grain: grainEl && grainEl.checked ? 'fixed' : 'any'
+    });
+  });
+  return {
+    projectName: document.getElementById('projectName').value,
+    panelWidth: document.getElementById('panelWidth').value,
+    panelLength: document.getElementById('panelLength').value,
+    panelThickness: document.getElementById('panelThickness').value,
+    panelCost: document.getElementById('panelCost').value,
+    sawKerf: document.getElementById('sawKerf').value,
+    jointAllow: document.getElementById('jointAllow').value,
+    stockOnHand: document.getElementById('stockOnHand').value,
+    panelStartNum: document.getElementById('panelStartNum').value,
+    pieces: piecesData
+  };
+}
+
+// Builds the shared row layout (settings block + pieces block) used by
+// both the CSV and XLSX writers, keeping numeric values as numbers so
+// Excel treats them as numbers rather than text.
+function buildParamRows(data) {
+  const numOrStr = v => {
+    if (v === '' || v === null || v === undefined) return '';
+    const n = Number(v);
+    return Number.isFinite(n) && String(v).trim() !== '' ? n : v;
+  };
+  const rows = [];
+  rows.push(['SETTING','project_name','panel_width','panel_length','panel_thickness','panel_cost','saw_kerf','joint_allow','stock_on_hand','panel_start_num']);
+  rows.push(['VALUE',
+    data.projectName,
+    numOrStr(data.panelWidth),
+    numOrStr(data.panelLength),
+    numOrStr(data.panelThickness),
+    numOrStr(data.panelCost),
+    numOrStr(data.sawKerf),
+    numOrStr(data.jointAllow),
+    numOrStr(data.stockOnHand),
+    numOrStr(data.panelStartNum)
+  ]);
+  rows.push([]);
+  rows.push(['PIECES','group','subgroup','part','qty','width','length','grain']);
+  data.pieces.forEach((p, i) => {
+    rows.push([i + 1, p.group, p.subgroup, p.part, numOrStr(p.qty), numOrStr(p.w), numOrStr(p.l), p.grain || 'any']);
+  });
+  return rows;
+}
+
+function saveParams() {
+  const data = collectData();
+  if (saveFormat === 'json') {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'panel-cut-params.json';
+    a.click();
+  } else if (saveFormat === 'csv') {
+    // CSV format: settings block first, then pieces
+    const csvRows = buildParamRows(data);
+    const csv = csvRows.map(r => r.map(v => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')).join('\r\n');
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'panel-cut-params.csv';
+    a.click();
+  } else if (saveFormat === 'xlsx') {
+    saveAsXlsx(data);
+  }
+}
+
+// Writes an array-of-arrays into an existing worksheet object, updating
+// only cell values in place (so any existing formatting on those cells
+// — fonts, fills, number formats, column widths — is preserved), and
+// clears any stale cells left over from a larger previous data extent.
+function writeAoaPreservingStyle(ws, aoa) {
+  const oldRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null;
+  const newRows = aoa.length;
+  const newCols = aoa.reduce((m, r) => Math.max(m, r.length), 0);
+
+  XLSX.utils.sheet_add_aoa(ws, aoa, {origin: 'A1'});
+
+  if (oldRange) {
+    for (let R = oldRange.s.r; R <= oldRange.e.r; R++) {
+      for (let C = oldRange.s.c; C <= oldRange.e.c; C++) {
+        if (R >= newRows || C >= newCols) {
+          delete ws[XLSX.utils.encode_cell({r: R, c: C})];
+        }
+      }
+    }
+  }
+  ws['!ref'] = XLSX.utils.encode_range({s: {r: 0, c: 0}, e: {r: Math.max(newRows - 1, 0), c: Math.max(newCols - 1, 0)}});
+}
+
+function saveAsXlsx(data) {
+  if (typeof XLSX === 'undefined') {
+    alert('The Excel (.xlsx) support library did not load — check your internet connection and try again.');
+    return;
+  }
+  const rows = buildParamRows(data);
+  const nameInput = document.getElementById('xlsxSheetName');
+  let sheetName = (nameInput && nameInput.value.trim()) || loadedSheetName || 'Panel Cut Data';
+  sheetName = sheetName.slice(0, 31); // Excel sheet name length limit
+
+  // Reuse the loaded workbook (if any) so other sheets and all
+  // workbook-level formatting are preserved untouched.
+  let wb = loadedWorkbook;
+  if (!wb) {
+    wb = XLSX.utils.book_new();
+  }
+  let ws = wb.Sheets[sheetName];
+  if (!ws) {
+    ws = {};
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+  writeAoaPreservingStyle(ws, rows);
+
+  loadedWorkbook = wb;
+  loadedSheetName = sheetName;
+  if (nameInput) nameInput.value = sheetName;
+
+  const base = (data.projectName || 'panel-cut-params').trim().replace(/[^\w\-]+/g, '_') || 'panel-cut-params';
+  loadedWorkbookFilename = base + '.xlsx';
+  XLSX.writeFile(wb, loadedWorkbookFilename);
+  updateXlsxStatus();
+}
+
+function loadParams(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const name = file.name.toLowerCase();
+  const isWorkbook = name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm');
+
+  if (isWorkbook) {
+    if (typeof XLSX === 'undefined') {
+      alert('The Excel (.xlsx) support library did not load — check your internet connection and try again.');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array', cellStyles: true, bookVBA: true});
+        handleLoadedWorkbook(workbook, file.name);
+      } catch (err) {
+        alert('Failed to load workbook: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const text = e.target.result.trim();
+        if (file.name.endsWith('.csv') || (text[0] !== '{' && text[0] !== '[')) {
+          loadFromCsv(text);
+        } else {
+          loadFromJson(text);
+        }
+      } catch(err) {
+        alert('Failed to load file: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+  event.target.value = '';
+}
+
+function loadFromJson(text) {
+  const data = JSON.parse(text);
+  document.getElementById('projectName').value = data.projectName || '';
+  document.getElementById('panelWidth').value = data.panelWidth || 48;
+  document.getElementById('panelLength').value = data.panelLength || 96;
+  document.getElementById('panelThickness').value = data.panelThickness || 1.0;
+  document.getElementById('panelCost').value = data.panelCost || '';
+  document.getElementById('sawKerf').value = data.sawKerf || 0.125;
+  document.getElementById('jointAllow').value = data.jointAllow || 0.0625;
+  document.getElementById('stockOnHand').value = data.stockOnHand || '';
+  document.getElementById('panelStartNum').value = data.panelStartNum || 'A';
+  document.getElementById('piecesBody').innerHTML = '';
+  pieceCount = 0;
+  (data.pieces || []).forEach(p => {
+    addPieceRow(p.qty, p.w, p.l, p.name || '', p.group || '', p.subgroup || '', p.part || '', p.grain || 'any');
+  });
+  // This project is no longer tied to a loaded workbook.
+  loadedWorkbook = null;
+  loadedSheetName = null;
+  loadedWorkbookFilename = null;
+  updateXlsxStatus();
+}
+
+// ─── XLSX load flow ───────────────────────────────────────────
+function handleLoadedWorkbook(workbook, filename) {
+  const sheetNames = workbook.SheetNames || [];
+  if (sheetNames.length === 0) {
+    alert('This workbook has no worksheets.');
+    return;
+  }
+  if (sheetNames.length === 1) {
+    loadFromXlsxSheet(workbook, sheetNames[0], filename);
+  } else {
+    openSheetPicker(workbook, filename);
+  }
+}
+
+function openSheetPicker(workbook, filename) {
+  pendingWorkbook = workbook;
+  pendingWorkbookFilename = filename;
+  const sel = document.getElementById('sheetPickerSelect');
+  sel.innerHTML = workbook.SheetNames.map(n =>
+    `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`
+  ).join('');
+  document.getElementById('sheetPickerModal').style.display = 'flex';
+}
+
+function cancelSheetPicker() {
+  pendingWorkbook = null;
+  pendingWorkbookFilename = null;
+  document.getElementById('sheetPickerModal').style.display = 'none';
+}
+
+function confirmSheetPicker() {
+  const sel = document.getElementById('sheetPickerSelect');
+  const sheetName = sel.value;
+  const wb = pendingWorkbook, fn = pendingWorkbookFilename;
+  document.getElementById('sheetPickerModal').style.display = 'none';
+  pendingWorkbook = null;
+  pendingWorkbookFilename = null;
+  if (wb) loadFromXlsxSheet(wb, sheetName, fn);
+}
+
+function loadFromXlsxSheet(workbook, sheetName, filename) {
+  const ws = workbook.Sheets[sheetName];
+  if (!ws) {
+    alert('Worksheet "' + sheetName + '" could not be read.');
+    return;
+  }
+  const rows = XLSX.utils.sheet_to_json(ws, {header: 1, defval: '', raw: true, blankrows: false})
+    .map(row => row.map(v => (v === null || v === undefined) ? '' : String(v)));
+  applyParsedProjectData(parseRowsToProjectData(rows));
+
+  loadedWorkbook = workbook;
+  loadedSheetName = sheetName;
+  loadedWorkbookFilename = filename || 'workbook.xlsx';
+  const nameInput = document.getElementById('xlsxSheetName');
+  if (nameInput) nameInput.value = sheetName;
+  setFormat('xlsx');
+}
+
+function parseCsvLine(line) {
+  // Handles quoted fields with embedded commas/quotes
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQ) {
+      if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (c === '"') { inQ = false; }
+      else { cur += c; }
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { result.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function loadFromCsv(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+  const rows = lines.map(parseCsvLine);
+  applyParsedProjectData(parseRowsToProjectData(rows));
+  // This project is no longer tied to a loaded workbook.
+  loadedWorkbook = null;
+  loadedSheetName = null;
+  loadedWorkbookFilename = null;
+  updateXlsxStatus();
+}
+
+// Parses a generic grid of rows (array of arrays of strings) — shared by
+// the CSV and XLSX loaders, since both files use the same SETTING/VALUE
+// + PIECES row layout.
+function parseRowsToProjectData(rows) {
+  let settingKeys = null;
+  let settingValues = null;
+  let inPieces = false;
+  const pieces = [];
+
+  for (const cols of rows) {
+    if (!cols || cols.every(c => (c ?? '') === '')) continue;
+    const tag = String(cols[0] || '').toUpperCase().trim();
+    if (tag === 'SETTING') {
+      settingKeys = cols.slice(1).map(k => String(k).toLowerCase().trim());
+    } else if (tag === 'VALUE') {
+      settingValues = cols.slice(1).map(v => String(v ?? ''));
+    } else if (tag === 'PIECES') {
+      inPieces = true;
+    } else if (inPieces && cols[0] !== '' && cols[0] != null && !isNaN(parseFloat(cols[0]))) {
+      const hasGSP = cols.length >= 7;
+      if (hasGSP) {
+        pieces.push({ group: cols[1]||'', subgroup: cols[2]||'', part: cols[3]||'', qty: cols[4]||'1', w: cols[5]||'', l: cols[6]||'', grain: cols[7]||'any' });
+      } else {
+        pieces.push({ group: cols[1]||'', subgroup: '', part: '', qty: cols[2]||'1', w: cols[3]||'', l: cols[4]||'', grain: 'any' });
+      }
+    }
+  }
+  return { settingKeys, settingValues, pieces };
+}
+
+// Applies parsed {settingKeys, settingValues, pieces} data to the form —
+// shared by the CSV and XLSX loaders.
+function applyParsedProjectData({ settingKeys, settingValues, pieces }) {
+  if (settingValues) {
+    // Build a lookup map if we have named keys; fall back to positional for old files
+    const get = (name, fallbackIdx, def='') => {
+      if (settingKeys) {
+        const ki = settingKeys.indexOf(name);
+        if (ki >= 0 && ki < settingValues.length) return settingValues[ki];
+      }
+      return (fallbackIdx < settingValues.length ? settingValues[fallbackIdx] : null) ?? def;
+    };
+    document.getElementById('projectName').value   = get('project_name',   -1, '');
+    document.getElementById('panelWidth').value    = get('panel_width',     0, 48);
+    document.getElementById('panelLength').value   = get('panel_length',    1, 96);
+    document.getElementById('panelThickness').value= get('panel_thickness', 2, 1.0);
+    document.getElementById('panelCost').value     = get('panel_cost',      3, '');
+    document.getElementById('sawKerf').value       = get('saw_kerf',        4, 0.125);
+    document.getElementById('jointAllow').value    = get('joint_allow',     5, 0.0625);
+    document.getElementById('stockOnHand').value   = get('stock_on_hand',   6, '');
+    document.getElementById('panelStartNum').value  = get('panel_start_num', 7, 'A');
+  }
+  document.getElementById('piecesBody').innerHTML = '';
+  pieceCount = 0;
+  pieces.forEach(p => addPieceRow(p.qty, p.w, p.l, p.name||'', p.group||'', p.subgroup||'', p.part||'', p.grain||'any'));
+}
+
+// ─── Panel lettering helpers ────────────────────────────────────
+// Panels are identified with letters (A, B, C ... Z, AA, AB, ...) instead
+// of numbers, using the same bijective base-26 scheme as spreadsheet
+// column headers. indexToLetters(0) === 'A', indexToLetters(25) === 'Z',
+// indexToLetters(26) === 'AA', etc.
+function indexToLetters(idx) {
+  let n = idx + 1; // move to 1-based
+  let s = '';
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s || 'A';
+}
+
+function lettersToIndex(letters) {
+  const clean = String(letters || '').toUpperCase().replace(/[^A-Z]/g, '');
+  if (!clean) return 0;
+  let n = 0;
+  for (let i = 0; i < clean.length; i++) {
+    n = n * 26 + (clean.charCodeAt(i) - 64);
+  }
+  return n - 1; // back to 0-based
+}
+
+// ─── Optimizer ────────────────────────────────────────────────
+// Uses a guillotine-cut bin-packing with best-fit decreasing area.
+// Tries both orientations of each piece.
+
+function runOptimizer() {
+  const panelW = parseFloat(document.getElementById('panelWidth').value) || 48;
+  const panelL = parseFloat(document.getElementById('panelLength').value) || 96;
+  const panelThickness = parseFloat(document.getElementById('panelThickness').value) || 0.75;
+  const kerf = parseFloat(document.getElementById('sawKerf').value) || 0;
+  const joint = parseFloat(document.getElementById('jointAllow').value) || 0;
+  const panelCostVal = parseFloat(document.getElementById('panelCost').value);
+  const stockOnHand = parseInt(document.getElementById('stockOnHand').value);
+  const projectName = (document.getElementById('projectName').value || '').trim();
+  const panelStartIndex = lettersToIndex(document.getElementById('panelStartNum').value);
+  const panelLetter = (pi) => indexToLetters(panelStartIndex + pi);
+  const totalAllow = kerf + joint;
+
+  const rawPieces = getPieces();
+  const outputArea = document.getElementById('outputArea');
+
+  if (rawPieces.length === 0) {
+    outputArea.innerHTML = `<div class="error-msg">Please add at least one piece to the cut list.</div>`;
+    return;
+  }
+
+  // Build a map from label -> row number (1-based) for diagram labeling
+  const pieceNumMap = {}; // label -> { num, name, w, l, color }
+  rawPieces.forEach((p, i) => { pieceNumMap[p.label] = { num: i+1, name: p.label, group: p.group, subgroup: p.subgroup, part: p.part, grain: p.grain, w: p.w, l: p.l, color: p.color }; });
+
+  // Expand pieces by quantity, keep label for display
+  let items = [];
+  rawPieces.forEach(p => {
+    for (let i = 0; i < p.qty; i++) {
+      items.push({ label: p.label, num: pieceNumMap[p.label].num, w: p.w, l: p.l, grain: p.grain, color: p.color });
+    }
+  });
+
+  // Sort by area descending (BFD heuristic)
+  items.sort((a, b) => (b.w * b.l) - (a.w * a.l));
+
+  // Guillotine packing
+  // Each panel has a list of free rectangles
+  // Each placed piece stores {label, color, x, y, w, l}
+  const panels = []; // {placed:[], freeRects:[{x,y,w,l}]}
+
+  function newPanel() {
+    return {
+      placed: [],
+      freeRects: [{ x: 0, y: 0, w: panelW, l: panelL }]
+    };
+  }
+
+  function tryPlace(freeRects, pw, pl) {
+    // pw = piece width (across panel width), pl = piece length (along panel length)
+    // effective size with allowance
+    const ew = pw + totalAllow;
+    const el = pl + totalAllow;
+    let bestArea = Infinity, bestRect = null, bestIdx = -1;
+    for (let i = 0; i < freeRects.length; i++) {
+      const r = freeRects[i];
+      if (ew <= r.w + 1e-9 && el <= r.l + 1e-9) {
+        const area = r.w * r.l;
+        if (area < bestArea) { bestArea = area; bestRect = r; bestIdx = i; }
+      }
+    }
+    if (bestRect === null) return null;
+    return { rect: bestRect, idx: bestIdx };
+  }
+
+  function splitRect(freeRects, rect, pw, pl, idx) {
+    const ew = pw + totalAllow;
+    const el = pl + totalAllow;
+    freeRects.splice(idx, 1);
+    // Right remainder — use full rect height so tall pieces can still fit there.
+    // (Horizontal-axis guillotine split: right stub spans the entire rect height,
+    //  bottom stub is trimmed to the piece's effective width.)
+    if (rect.w - ew > 1e-9) {
+      freeRects.push({ x: rect.x + ew, y: rect.y, w: rect.w - ew, l: rect.l });
+    }
+    // Bottom remainder — only as wide as the piece column placed above it
+    if (rect.l - el > 1e-9) {
+      freeRects.push({ x: rect.x, y: rect.y + el, w: ew, l: rect.l - el });
+    }
+  }
+
+  const unplaced = [];
+
+  items.forEach(item => {
+    // Grain constraint: if 'fixed', piece length must run along panel length axis (l axis).
+    // If 'any', try both orientations (best-fit heuristic).
+    let orientations;
+    if (item.grain === 'fixed') {
+      // Piece length (item.l) must align with panel length axis.
+      // In our coordinate system: pw = piece width across panel width, pl = piece length along panel length.
+      // So fixed orientation is always [item.w, item.l] — no rotation allowed.
+      orientations = [[item.w, item.l]];
+    } else {
+      // Pre-orient: align piece's greater dimension with panel's greater dimension (panelL).
+      let pw0 = item.w, pl0 = item.l;
+      if (item.w > item.l) { pw0 = item.l; pl0 = item.w; }
+      orientations = [[pw0, pl0]];
+      if (Math.abs(pw0 - pl0) > 1e-9) orientations.push([pl0, pw0]);
+    }
+
+    let placed = false;
+
+    for (const panel of panels) {
+      // Try preferred orientation first; only use fallback if preferred doesn't fit
+      let best = null, bestOri = null;
+      for (const [pw, pl] of orientations) {
+        const res = tryPlace(panel.freeRects, pw, pl);
+        if (res) {
+          // Accept first orientation that fits (preferred is listed first)
+          best = res; bestOri = [pw, pl];
+          break;
+        }
+      }
+      if (best) {
+        const [pw, pl] = bestOri;
+        panel.placed.push({ label: item.label, num: item.num, color: item.color, x: best.rect.x, y: best.rect.y, w: pw, l: pl });
+        splitRect(panel.freeRects, best.rect, pw, pl, best.idx);
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      // Always open a new panel — no cap
+      const panel = newPanel();
+      let best = null, bestOri = null;
+      for (const [pw, pl] of orientations) {
+        const res = tryPlace(panel.freeRects, pw, pl);
+        if (res) {
+          best = res; bestOri = [pw, pl];
+          break;
+        }
+      }
+      panels.push(panel);
+      if (best) {
+        const [pw, pl] = bestOri;
+        panel.placed.push({ label: item.label, num: item.num, color: item.color, x: best.rect.x, y: best.rect.y, w: pw, l: pl });
+        splitRect(panel.freeRects, best.rect, pw, pl, best.idx);
+        placed = true;
+      } else {
+        unplaced.push(item);
+      }
+    }
+  });
+
+  // ─── Cut Sequence ─────────────────────────────────────────────
+  // Reconstruct the guillotine cut tree from placed piece coordinates.
+  // DFS pre-order numbering matches natural sawing order.
+
+  function findGuillotineCut(pieces, rx, ry, rw, rl) {
+    const eps = 1e-5;
+    if (pieces.length <= 1) return null;
+    const xs = new Set();
+    pieces.forEach(p => {
+      const cx = p.x + p.w;
+      if (cx > rx + eps && cx < rx + rw - eps) xs.add(Math.round(cx * 1e6) / 1e6);
+    });
+    for (const cx of [...xs].sort((a, b) => a - b)) {
+      const left  = pieces.filter(p => p.x + p.w <= cx + eps);
+      const right = pieces.filter(p => p.x       >= cx - eps);
+      if (left.length + right.length === pieces.length && left.length > 0 && right.length > 0)
+        return { dir: 'V', coord: cx, groupA: left, groupB: right };
+    }
+    const ys = new Set();
+    pieces.forEach(p => {
+      const cy = p.y + p.l;
+      if (cy > ry + eps && cy < ry + rl - eps) ys.add(Math.round(cy * 1e6) / 1e6);
+    });
+    for (const cy of [...ys].sort((a, b) => a - b)) {
+      const top    = pieces.filter(p => p.y + p.l <= cy + eps);
+      const bottom = pieces.filter(p => p.y       >= cy - eps);
+      if (top.length + bottom.length === pieces.length && top.length > 0 && bottom.length > 0)
+        return { dir: 'H', coord: cy, groupA: top, groupB: bottom };
+    }
+    return null;
+  }
+
+  function buildCutSequence(pieces, rx, ry, rw, rl, cuts) {
+    if (pieces.length <= 1) return;
+    const result = findGuillotineCut(pieces, rx, ry, rw, rl);
+    if (!result) return;
+    const step = cuts.length + 1;
+    const { dir, coord, groupA, groupB } = result;
+    if (dir === 'V') {
+      cuts.push({ step, dir: 'V', coord, rx, ry, rw, rl, countA: groupA.length, countB: groupB.length,
+        label: `Rip at ${coord.toFixed(4)}" from left`,
+        detail: `${groupA.length} pc left · ${groupB.length} pc right` });
+      buildCutSequence(groupA, rx,    ry, coord - rx,      rl, cuts);
+      buildCutSequence(groupB, coord, ry, rx + rw - coord, rl, cuts);
+    } else {
+      cuts.push({ step, dir: 'H', coord, rx, ry, rw, rl, countA: groupA.length, countB: groupB.length,
+        label: `Crosscut at ${coord.toFixed(4)}" from top`,
+        detail: `${groupA.length} pc above · ${groupB.length} pc below` });
+      buildCutSequence(groupA, rx, ry,    rw, coord - ry,      cuts);
+      buildCutSequence(groupB, rx, coord, rw, ry + rl - coord, cuts);
+    }
+  }
+
+  panels.forEach(panel => {
+    panel.cuts = [];
+    buildCutSequence(panel.placed, 0, 0, panelW, panelL, panel.cuts);
+  });
+
+  // Stats
+  const totalPanelArea = panels.length * panelW * panelL;
+  const usedArea = items.filter(i => !unplaced.includes(i)).reduce((s, i) => s + i.w * i.l, 0);
+  const yield_ = totalPanelArea > 0 ? ((usedArea / totalPanelArea) * 100).toFixed(1) : 0;
+  const waste = (100 - yield_).toFixed(1);
+  const panelsRequired = panels.length;
+  const totalCost = (!isNaN(panelCostVal) && panelCostVal > 0) ? (panelsRequired * panelCostVal).toFixed(2) : null;
+
+  // Board Feet: (thickness × width_in × length_in) / 144, summed over all required panels
+  // BF per panel = (panelThickness * panelW * panelL) / 144
+  const bfPerPanel = (panelThickness * panelW * panelL) / 144;
+  const totalBoardFeet = (bfPerPanel * panelsRequired).toFixed(2);
+
+  // Total cost = total board feet (incl. waste) × cost per board foot
+  const totalCostBF = (!isNaN(panelCostVal) && panelCostVal > 0) ? (parseFloat(totalBoardFeet) * panelCostVal).toFixed(2) : null;
+
+  // Render
+  let html = '';
+
+  // Stats bar
+  html += `<div class="stats-bar">
+    <div class="stat"><div class="stat-label">Panels Required</div><div class="stat-value">${panelsRequired}</div></div>
+    <div class="stat"><div class="stat-label">Pieces Placed</div><div class="stat-value">${items.length - unplaced.length} / ${items.length}</div></div>
+    <div class="stat"><div class="stat-label">Material Yield</div><div class="stat-value">${yield_}%</div></div>
+    <div class="stat"><div class="stat-label">Waste</div><div class="stat-value">${waste}%</div></div>
+    <div class="stat" style="border-color:var(--wood-mid)">
+      <div class="stat-label" style="color:var(--wood-mid)">Total Board Feet</div>
+      <div class="stat-value" style="color:var(--wood-mid)">${totalBoardFeet} bf</div>
+    </div>
+    <div class="stat" style="${totalCostBF !== null ? 'border-color:var(--success)' : ''}">
+      <div class="stat-label" style="${totalCostBF !== null ? 'color:var(--success)' : ''}">Total Material Cost</div>
+      <div class="stat-value" style="${totalCostBF !== null ? 'color:var(--success)' : 'color:var(--muted);font-size:0.9rem'}">
+        ${totalCostBF !== null ? '$' + totalCostBF : 'Enter cost/bf →'}
+      </div>
+    </div>
+    ${(() => {
+      if (isNaN(stockOnHand) || document.getElementById('stockOnHand').value === '') return '';
+      const diff = stockOnHand - panelsRequired;
+      if (diff >= 0) {
+        return `<div class="stat" style="border-color:var(--success)">
+          <div class="stat-label" style="color:var(--success)">Stock On Hand</div>
+          <div class="stat-value" style="color:var(--success)">${stockOnHand} panels <span style="font-size:0.75rem">(+${diff} surplus)</span></div>
+        </div>`;
+      } else {
+        return `<div class="stat" style="border-color:var(--danger)">
+          <div class="stat-label" style="color:var(--danger)">Stock On Hand</div>
+          <div class="stat-value" style="color:var(--danger)">${stockOnHand} panels <span style="font-size:0.75rem">(${diff} short)</span></div>
+        </div>`;
+      }
+    })()}
+    ${unplaced.length > 0 ? `<div class="stat" style="border-color:#b94040"><div class="stat-label" style="color:#b94040">Unplaced</div><div class="stat-value" style="color:#b94040">${unplaced.length}</div></div>` : ''}
+  </div>`;
+
+  if (unplaced.length > 0) {
+    const uLabels = unplaced.map(u => `#${u.num} ${u.label}`).join(', ');
+    html += `<div class="error-msg">⚠ ${unplaced.length} piece(s) could not be placed (each exceeds the panel dimensions): ${uLabels}. Check piece sizes vs panel size.</div>`;
+  }
+
+  // Pages
+  const printW_in = 7.5, printH_in = 9.5; // usable area inside margins
+  const SCALE = 72; // px per inch at screen rendering
+  const srcFilename = window.location.pathname.split('/').pop() || document.title || 'panel-cut-optimizer.html';
+
+  html += `<div class="print-pages">`;
+
+  // ── Summary page (PAGE 1) ─────────────────────────────────────
+  const today_s = new Date().toLocaleDateString();
+
+  // Build one row per unique piece number, sorted by group / subgroup / part
+  const summaryRows = Object.values(pieceNumMap)
+    .sort((a, b) => {
+      const ga = (a.group||'').toLowerCase(), gb = (b.group||'').toLowerCase();
+      if (ga !== gb) return ga < gb ? -1 : 1;
+      const sa = (a.subgroup||'').toLowerCase(), sb = (b.subgroup||'').toLowerCase();
+      if (sa !== sb) return sa < sb ? -1 : 1;
+      const pa = (a.part||'').toLowerCase(), pb = (b.part||'').toLowerCase();
+      return pa < pb ? -1 : pa > pb ? 1 : 0;
+    })
+    .map(info => {
+      const totalQty = items.filter(i => i.label === info.name).length;
+      const sheetNums = panels
+        .map((panel, pi) => panel.placed.some(p => p.num === info.num) ? panelLetter(pi) : null)
+        .filter(n => n !== null);
+      const sheetsStr = sheetNums.length ? sheetNums.join(', ') : '—';
+      const grainIcon = (info.grain === 'fixed') ? '↕' : '○';
+      const grainLabel = (info.grain === 'fixed') ? '↕ Fixed' : '○ Any';
+      return `<tr>
+        <td style="font-weight:700;color:${info.color};padding:5px 10px 5px 4px;white-space:nowrap">${info.num}</td>
+        <td style="padding:5px 10px 5px 4px;">${info.group||''}</td>
+        <td style="padding:5px 10px 5px 4px;">${info.subgroup||''}</td>
+        <td style="padding:5px 10px 5px 4px;">${info.part||''}</td>
+        <td style="padding:5px 10px 5px 4px;white-space:nowrap;text-align:right;">${info.w.toFixed(4)}"</td>
+        <td style="padding:5px 10px 5px 4px;white-space:nowrap;text-align:right;">${info.l.toFixed(4)}"</td>
+        <td style="padding:5px 10px 5px 4px;text-align:center;">${totalQty}</td>
+        <td style="padding:5px 10px 5px 4px;text-align:center;">${grainLabel}</td>
+        <td style="padding:5px 4px;text-align:center;color:#666;">${sheetsStr}</td>
+      </tr>`;
+    }).join('');
+
+  html += `<div class="page-wrapper">
+    <div class="page-title">${projectName ? projectName + " — " : ""}Cut List Summary</div>
+    <div class="page-subtitle">STOCK: ${panelW}" × ${panelL}" × ${panelThickness}" &nbsp;|&nbsp; PANELS REQUIRED: ${panels.length} &nbsp;|&nbsp; TOTAL BOARD FEET: ${totalBoardFeet} bf &nbsp;|&nbsp; PIECES: ${items.length}</div>
+    <table style="margin-top:16px;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11pt;color:#333;width:100%;">
+      <thead>
+        <tr style="border-bottom:2px solid #bbb;">
+          <th style="padding:5px 10px 5px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">NO.</th>
+          <th style="padding:5px 10px 5px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">GROUP</th>
+          <th style="padding:5px 10px 5px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">SUBGROUP</th>
+          <th style="padding:5px 10px 5px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">PART</th>
+          <th style="padding:5px 10px 5px 4px;text-align:right;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">WIDTH</th>
+          <th style="padding:5px 10px 5px 4px;text-align:right;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">LENGTH</th>
+          <th style="padding:5px 10px 5px 4px;text-align:center;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">QTY</th>
+          <th style="padding:5px 10px 5px 4px;text-align:center;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">GRAIN</th>
+          <th style="padding:5px 4px;text-align:center;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">PANEL(S)</th>
+        </tr>
+      </thead>
+      <tbody>${summaryRows}</tbody>
+    </table>
+    <div class="page-footer">
+      <span>${projectName || "Panel Cut Optimizer"}</span>
+      <span>Cut List Summary</span>
+      <span style="text-align:right;">&copy; 2026 Don Weinreich &nbsp;|&nbsp; ${srcFilename}<br>${today_s}</span>
+    </div>
+  </div>`;
+
+  panels.forEach((panel, pi) => {
+    // Compute scale to fit panel in printable area preserving aspect ratio
+    const panelAspect = panelW / panelL;
+    const printAspect = printW_in / printH_in;
+    let diagW, diagH;
+    if (panelAspect > printAspect) {
+      diagW = printW_in * SCALE;
+      diagH = diagW / panelAspect;
+    } else {
+      diagH = printH_in * SCALE * 0.80; // leave room for legend
+      diagW = diagH * panelAspect;
+    }
+    const scaleX = diagW / panelW;
+    const scaleY = diagH / panelL;
+
+    const panelAreaPx_w = diagW;
+    const panelAreaPx_h = diagH;
+
+    // Build SVG for this panel — extra horizontal room for cut-number badge columns
+    const BADGE_SVG_MARGIN = 50; // px extra on each side for badge columns
+    let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${panelAreaPx_w + BADGE_SVG_MARGIN * 2}" height="${panelAreaPx_h}" viewBox="${-BADGE_SVG_MARGIN} 0 ${panelAreaPx_w + BADGE_SVG_MARGIN * 2} ${panelAreaPx_h}">`;
+    // Panel background = white (no background tone in printable diagram)
+    svg += `<rect x="0" y="0" width="${panelAreaPx_w}" height="${panelAreaPx_h}" fill="white" stroke="#555" stroke-width="2"/>`;
+
+    // Draw kerf lines (thin dashed lines across cuts) — vertical and horizontal cut lines
+    // Collect unique x and y cut positions
+    const xCuts = new Set(), yCuts = new Set();
+    panel.placed.forEach(p => {
+      xCuts.add(p.x); xCuts.add(p.x + p.w);
+      yCuts.add(p.y); yCuts.add(p.y + p.l);
+    });
+
+    // Draw numbered cut lines on the diagram
+    // V-cuts (rips): badges RIGHT of panel. H-cuts (crosscuts): badges LEFT of panel.
+    // Leader terminus = start of each cut line. Ideal angle 15° from horizontal.
+    const CUT_COLOR = '#b03000';
+
+    // Separate cuts by direction
+    const vCuts = panel.cuts.filter(c => c.dir === 'V');
+    const hCuts = panel.cuts.filter(c => c.dir === 'H');
+
+    // Draw cut lines first (behind pieces and circles)
+    panel.cuts.forEach(cut => {
+      if (cut.dir === 'V') {
+        const lx = cut.coord * scaleX;
+        const y1 = cut.ry * scaleY;
+        const y2 = (cut.ry + cut.rl) * scaleY;
+        svg += `<line x1="${lx}" y1="${y1}" x2="${lx}" y2="${y2}" stroke="#1a3e6e" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.85"/>`;
+      } else {
+        const ly = cut.coord * scaleY;
+        const x1 = cut.rx * scaleX;
+        const x2 = (cut.rx + cut.rw) * scaleX;
+        svg += `<line x1="${x1}" y1="${ly}" x2="${x2}" y2="${ly}" stroke="#b03000" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.85"/>`;
+      }
+    });
+
+    // Draw pieces (on top of cut lines, below leader annotations)
+    panel.placed.forEach(p => {
+      const px = p.x * scaleX;
+      const py = p.y * scaleY;
+      const pw = p.w * scaleX;
+      const pl = p.l * scaleY;
+      // Piece rectangle - light fill with colored border
+      svg += `<rect x="${px}" y="${py}" width="${pw}" height="${pl}" fill="#f0f4ff" stroke="${p.color}" stroke-width="2"/>`;
+
+      // Label: rotated -90°, underlined to distinguish 6 from 9
+      const fontSize = Math.max(7, Math.min(28, Math.min(pw, pl) * 0.38));
+      const cx = px + pw / 2;
+      const cy = py + pl / 2;
+      svg += `<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-family="monospace" font-size="${fontSize}px" font-weight="bold" fill="${p.color}" text-decoration="underline" transform="rotate(-90,${cx},${cy})">${p.num}/${panelLetter(pi)}</text>`;
+    });
+
+    // ── Leader lines, terminus marks, and cut-number badges ───────
+    //
+    // CROSSING-FREE DESIGN:
+    //   Two line segments sharing one endpoint (the badge anchor) cannot cross each other
+    //   if and only if their other endpoints (termini) are in the same angular order as
+    //   the badge positions — i.e. badge-Y order matches terminus-Y order (monotone pairing).
+    //
+    //   For V-cuts all leaders terminate at the SAME X (right panel edge = panelAreaPx_w).
+    //   For H-cuts all leaders terminate at the SAME X (left panel edge = 0).
+    //   With a fixed terminus X, two leaders from the same badge-column X cross iff their
+    //   badge-Y order differs from their terminus-Y order. The monotone pairing below
+    //   prevents this unconditionally.
+    //
+    //   A small vertical tick from the panel edge to the actual cut-line start shows
+    //   which cut each leader points to.
+    //
+    // COLORS:  V-cuts (rips) = dark blue.  H-cuts (crosscuts) = red.
+    // TERMINI: ▼ arrowhead for V-cuts (on cut line start), ▶ for H-cuts.
+    //
+    const V_COLOR  = '#1a3e6e';
+    const V_BADGE  = '#1a5c9e';
+    const H_COLOR  = '#b03000';
+    const H_BADGE  = '#c84010';
+    const BADGE_R3      = 10;
+    const BADGE_MARGIN3 = 8;
+    const MIN_GAP       = BADGE_R3 * 2 + 2;
+    const TAN15B        = Math.tan(15 * Math.PI / 180);
+
+    // layoutBadges: places badges so leaders to a FIXED terminus X never cross.
+    // termData: [{cut, termY, actualTermX, actualTermY}] — termY is where leader touches panel edge.
+    // badgeAnchorX: X of badge edge that leader starts from.
+    // fixedTermX: the fixed X the leader goes to (panel right or left edge).
+    function layoutBadges(termData, badgeAnchorX, fixedTermX) {
+      if (termData.length === 0) return [];
+
+      // Sort by termY so ideal badge order matches terminus order from the start
+      const sorted = [...termData].sort((a, b) => a.termY - b.termY);
+
+      // Compute ideal badge CY: at 15° the badge is above and to the side of terminus
+      // badgeCY = termY - |badgeAnchorX - fixedTermX| * tan15
+      const run = Math.abs(badgeAnchorX - fixedTermX);
+      let items = sorted.map(d => ({
+        ...d,
+        badgeCY: d.termY - run * TAN15B
+      }));
+
+      // Enforce top margin
+      if (items[0].badgeCY < BADGE_R3 + 4) {
+        const shift = (BADGE_R3 + 4) - items[0].badgeCY;
+        items.forEach(d => d.badgeCY += shift);
+      }
+
+      // Enforce minimum spacing — push downward only, preserving order
+      for (let i = 1; i < items.length; i++) {
+        if (items[i].badgeCY - items[i-1].badgeCY < MIN_GAP) {
+          items[i].badgeCY = items[i-1].badgeCY + MIN_GAP;
+        }
+      }
+
+      // After spacing, badge order is still monotone with terminus order
+      // (we only push downward, never swap) — no re-pairing needed.
+      return items;
+    }
+
+    // ── V-cuts: right side, dark blue ────────────────────────────
+    // Leader goes from badge left-edge → right panel edge (fixed X = panelAreaPx_w).
+    // A small vertical tick then drops from the panel edge to the actual cut start (ry).
+    const vColX3   = panelAreaPx_w + BADGE_MARGIN3 + BADGE_R3;
+    const vAnchorX = vColX3 - BADGE_R3;  // left edge of badge
+    const vFixedTermX = panelAreaPx_w;    // leaders all land here
+
+    const vTermData = vCuts.map(cut => ({
+      cut,
+      termY:       cut.ry * scaleY,   // where leader meets panel right edge (top of cut)
+      actualTermX: cut.coord * scaleX, // actual cut line X (for tick + arrowhead)
+      actualTermY: cut.ry * scaleY
+    }));
+
+    const vLayout = layoutBadges(vTermData, vAnchorX, vFixedTermX);
+
+    vLayout.forEach(({ cut, termY, actualTermX, actualTermY, badgeCY }) => {
+      // Diagonal leader: badge left-edge → right panel edge at termY
+      svg += `<line x1="${vAnchorX}" y1="${badgeCY}" x2="${vFixedTermX}" y2="${termY}"
+        stroke="${V_COLOR}" stroke-width="1" opacity="0.9" stroke-dasharray="4,2"/>`;
+      // Horizontal tick along panel top edge from right-edge landing to actual cut X
+      svg += `<line x1="${vFixedTermX}" y1="${termY}" x2="${actualTermX}" y2="${actualTermY}"
+        stroke="${V_COLOR}" stroke-width="1" opacity="0.7"/>`;
+      // Downward arrowhead at actual cut start
+      svg += `<text x="${actualTermX}" y="${actualTermY + 1}" text-anchor="middle" dominant-baseline="hanging"
+        font-size="10px" fill="${V_COLOR}">▼</text>`;
+      // Badge
+      svg += `<circle cx="${vColX3}" cy="${badgeCY}" r="${BADGE_R3}" fill="${V_BADGE}" opacity="0.95"/>`;
+      svg += `<text x="${vColX3}" y="${badgeCY}" text-anchor="middle" dominant-baseline="middle"
+        font-family="monospace" font-size="8px" font-weight="bold" fill="white">${cut.step}</text>`;
+    });
+
+    // ── H-cuts: left side, red ────────────────────────────────────
+    // Leader goes from badge right-edge → left panel edge (fixed X = 0).
+    // A small horizontal tick then runs from panel left edge to the actual cut start (rx).
+    const hColX3   = -(BADGE_MARGIN3 + BADGE_R3);
+    const hAnchorX = hColX3 + BADGE_R3;  // right edge of badge
+    const hFixedTermX = 0;                // leaders all land here
+
+    const hTermData = hCuts.map(cut => ({
+      cut,
+      termY:       cut.coord * scaleY,  // Y of horizontal cut (leader meets panel left edge here)
+      actualTermX: cut.rx * scaleX,      // left end of cut line
+      actualTermY: cut.coord * scaleY
+    }));
+
+    const hLayout = layoutBadges(hTermData, hAnchorX, hFixedTermX);
+
+    hLayout.forEach(({ cut, termY, actualTermX, actualTermY, badgeCY }) => {
+      // Diagonal leader: badge right-edge → left panel edge at termY
+      svg += `<line x1="${hAnchorX}" y1="${badgeCY}" x2="${hFixedTermX}" y2="${termY}"
+        stroke="${H_COLOR}" stroke-width="1" opacity="0.9" stroke-dasharray="4,2"/>`;
+      // Horizontal tick from panel left edge to actual cut left end
+      svg += `<line x1="${hFixedTermX}" y1="${termY}" x2="${actualTermX}" y2="${actualTermY}"
+        stroke="${H_COLOR}" stroke-width="1" opacity="0.7"/>`;
+      // Rightward arrowhead at actual cut start
+      svg += `<text x="${actualTermX}" y="${actualTermY}" text-anchor="start" dominant-baseline="middle"
+        font-size="10px" fill="${H_COLOR}">▶</text>`;
+      // Badge
+      svg += `<circle cx="${hColX3}" cy="${badgeCY}" r="${BADGE_R3}" fill="${H_BADGE}" opacity="0.95"/>`;
+      svg += `<text x="${hColX3}" y="${badgeCY}" text-anchor="middle" dominant-baseline="middle"
+        font-family="monospace" font-size="8px" font-weight="bold" fill="white">${cut.step}</text>`;
+    });
+
+    // Dimension arrows on panel
+    const arrowColor = '#444';
+    // Bottom arrow (width)
+    svg += `<line x1="0" y1="${panelAreaPx_h+14}" x2="${panelAreaPx_w}" y2="${panelAreaPx_h+14}" stroke="${arrowColor}" stroke-width="1" marker-end="url(#arrowR${pi})" marker-start="url(#arrowL${pi})"/>`;
+    svg += `<text x="${panelAreaPx_w/2}" y="${panelAreaPx_h+26}" text-anchor="middle" font-family="monospace" font-size="9px" fill="${arrowColor}">${panelW}"</text>`;
+    // Right arrow (length)
+    svg += `<line x1="${panelAreaPx_w+14}" y1="0" x2="${panelAreaPx_w+14}" y2="${panelAreaPx_h}" stroke="${arrowColor}" stroke-width="1" marker-end="url(#arrowD${pi})" marker-start="url(#arrowU${pi})"/>`;
+    svg += `<text x="${panelAreaPx_w+28}" y="${panelAreaPx_h/2}" text-anchor="middle" font-family="monospace" font-size="9px" fill="${arrowColor}" transform="rotate(90,${panelAreaPx_w+28},${panelAreaPx_h/2})">${panelL}"</text>`;
+
+    svg += `<defs>
+      <marker id="arrowR${pi}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="${arrowColor}"/></marker>
+      <marker id="arrowL${pi}" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6" fill="${arrowColor}"/></marker>
+      <marker id="arrowD${pi}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6" fill="${arrowColor}"/></marker>
+      <marker id="arrowU${pi}" markerWidth="6" markerHeight="6" refX="1" refY="3" orient="auto-start-reverse"><path d="M0,0 L6,3 L0,6" fill="${arrowColor}"/></marker>
+    </defs>`;
+
+    svg += `</svg>`;
+
+    // Build key table for this panel — one row per unique piece number on this sheet
+    const usedNums = [...new Map(panel.placed.map(p => [p.num, p])).values()]
+      .sort((a, b) => a.num - b.num);
+    const keyRows = usedNums.map(p => {
+      const info = pieceNumMap[p.label];
+      const qtyOnSheet = panel.placed.filter(pp => pp.num === p.num).length;
+      const grp = info?.group || '';
+      const sub = info?.subgroup || '';
+      const prt = info?.part || '';
+      const grainIcon = (info?.grain === 'fixed') ? '↕' : '○';
+      const grainTitle = (info?.grain === 'fixed') ? 'Grain fixed — length parallel to panel length' : 'No grain constraint';
+      return `<tr>
+        <td style="font-weight:700;color:${p.color};padding:3px 8px 3px 4px;white-space:nowrap">${p.num}</td>
+        <td style="padding:3px 8px 3px 4px;">${grp}</td>
+        <td style="padding:3px 8px 3px 4px;">${sub}</td>
+        <td style="padding:3px 8px 3px 4px;">${prt}</td>
+        <td style="padding:3px 8px 3px 4px;white-space:nowrap">${p.w.toFixed(4)}" × ${p.l.toFixed(4)}"</td>
+        <td style="padding:3px 8px 3px 4px;text-align:center;" title="${grainTitle}">${grainIcon}</td>
+        <td style="padding:3px 4px;text-align:center;">×${qtyOnSheet}</td>
+      </tr>`;
+    }).join('');
+
+    const today = new Date().toLocaleDateString();
+    const panelYield = (() => {
+      const used = panel.placed.reduce((s,p) => s + p.w*p.l, 0);
+      return ((used / (panelW*panelL))*100).toFixed(1);
+    })();
+
+    const panelBF = bfPerPanel.toFixed(2);
+    const printCutSeq = document.getElementById('printCutSeq').checked;
+
+    html += `<div class="page-wrapper">
+      <div class="page-title">${projectName ? projectName + " — " : ""}Panel Cut Layout — Panel ${panelLetter(pi)} of ${panelLetter(panels.length - 1)}</div>
+      <div class="page-subtitle">STOCK: ${panelW}" × ${panelL}" × ${panelThickness}" &nbsp;|&nbsp; KERF: ${kerf}" &nbsp;|&nbsp; JOINT ALLOWANCE: ${joint}" &nbsp;|&nbsp; YIELD: ${panelYield}% &nbsp;|&nbsp; BOARD FEET: ${panelBF} bf</div>
+      <div class="cut-diagram-wrap" style="overflow:visible">${svg}</div>
+      <table style="margin-top:14px;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:11pt;color:#333;width:auto;">
+        <thead>
+          <tr style="border-bottom:1.5px solid #bbb;">
+            <th style="padding:3px 8px 3px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">#.</th>
+            <th style="padding:3px 8px 3px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">GRP</th>
+            <th style="padding:3px 8px 3px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">SUBGRP</th>
+            <th style="padding:3px 8px 3px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">PART</th>
+            <th style="padding:3px 8px 3px 4px;text-align:left;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">WIDTH × LENGTH</th>
+            <th style="padding:3px 8px 3px 4px;text-align:center;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">GRAIN</th>
+            <th style="padding:3px 4px;text-align:center;font-size:9pt;letter-spacing:0.08em;color:#8a7560;">QTY (THIS PNL)</th>
+          </tr>
+        </thead>
+        <tbody>${keyRows}</tbody>
+      </table>
+      ${printCutSeq && panel.cuts.length > 0 ? `
+      <div style="margin-top:18px;">
+        <div style="font-family:'DM Mono',monospace;font-size:8pt;letter-spacing:0.12em;text-transform:uppercase;color:#8a7560;border-bottom:1px solid #ccc;padding-bottom:4px;margin-bottom:8px;">
+          Cut Sequence &nbsp;·&nbsp; ${panel.cuts.length} cut${panel.cuts.length !== 1 ? 's' : ''} &nbsp;
+          <span style="font-size:7pt;letter-spacing:0.05em;color:#aaa;">(dashed lines on diagram · rip = along width · crosscut = along length)</span>
+        </div>
+        <table style="border-collapse:collapse;font-family:'DM Mono',monospace;font-size:9.5pt;color:#333;">
+          <tbody>
+            ${panel.cuts.map(c => `
+            <tr style="border-bottom:1px solid #eee;">
+              <td style="padding:3px 10px 3px 2px;vertical-align:middle;">
+                <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${c.dir === 'V' ? '#1a5c9e' : '#c84010'};color:white;font-size:8pt;font-weight:bold;flex-shrink:0;">${c.step}</span>
+              </td>
+              <td style="padding:3px 14px 3px 4px;font-weight:600;color:${c.dir === 'V' ? '#1a5c9e' : '#c84010'};white-space:nowrap;">
+                ${c.dir === 'V' ? '↕ RIP' : '↔ CROSSCUT'}
+              </td>
+              <td style="padding:3px 14px 3px 4px;white-space:nowrap;">
+                ${c.label}
+              </td>
+              <td style="padding:3px 14px 3px 4px;white-space:nowrap;color:#666;">
+                offcut from (${c.rx.toFixed(3)}", ${c.ry.toFixed(3)}") &nbsp;${c.rw.toFixed(4)}" × ${c.rl.toFixed(4)}"
+              </td>
+              <td style="padding:3px 4px;color:#999;font-size:8.5pt;">
+                ${c.detail}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>` : ''}
+      <div class="page-footer">
+        <span>${projectName || "Panel Cut Optimizer"}</span>
+        <span>Sheet ${panelLetter(pi)} of ${panelLetter(panels.length - 1)}</span>
+        <span style="text-align:right;">&copy; 2026 Don Weinreich &nbsp;|&nbsp; ${srcFilename}<br>${today}</span>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>`; // close .print-pages
+
+  outputArea.innerHTML = html;
+}
+
+// ─── Init ─────────────────────────────────────────────────────
+addPieceRow('2', '11.2500', '23.5000', '', 'Cabinet', 'Case', 'Side Panel', 'fixed');
+addPieceRow('4', '5.5000', '23.5000', '', 'Cabinet', 'Case', 'Shelf', 'any');
+addPieceRow('1', '11.2500', '11.2500', '', 'Cabinet', 'Case', 'Top', 'fixed');
+</script>
+</body>
+</html>
